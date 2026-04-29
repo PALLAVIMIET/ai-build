@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'role', 'updatedAt']);
+    }
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid
+        && data.email is string && data.email.size() > 0
+        && data.role in ['athlete', 'donor']
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    // --- Athletes ---
+    match /athletes/{athleteId} {
+      allow list: if true; // Secure list: Anyone can browse
+      allow get: if true;
+      allow create: if isSignedIn() && isOwner(athleteId) && isValidAthlete(incoming());
+      allow update: if (
+        // Action: Update Bio/Details
+        (isOwner(athleteId) && isValidAthlete(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['bio', 'achievements', 'image', 'updatedAt'])) ||
+        // Action: Update Progress (via Donation)
+        (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['raised', 'updatedAt']) && incoming().raised >= existing().raised)
+      );
+    }
+
+    function isValidAthlete(data) {
+      return data.athleteId is string && data.athleteId.size() > 0
+        && data.name is string && data.name.size() > 0
+        && data.sport is string
+        && data.goal is number && data.goal > 0
+        && data.raised is number && data.raised >= 0
+        && data.status in ['active', 'completed', 'paused']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Donations ---
+    match /athletes/{athleteId}/donations/{donationId} {
+      allow list: if true;
+      allow create: if isSignedIn() && isValidDonation(incoming()) && athleteId == incoming().athleteId;
+    }
+
+    function isValidDonation(data) {
+      return data.donorId == request.auth.uid
+        && data.amount is number && data.amount > 0
+        && data.timestamp == request.time;
+    }
+  }
+}

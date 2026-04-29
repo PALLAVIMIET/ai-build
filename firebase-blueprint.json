@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and role",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["athlete", "donor"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt", "updatedAt"]
+    },
+    "AthleteProfile": {
+      "title": "Athlete Campaign",
+      "description": "Details about the student athlete and their funding goal",
+      "type": "object",
+      "properties": {
+        "athleteId": { "type": "string" },
+        "name": { "type": "string" },
+        "sport": { "type": "string" },
+        "school": { "type": "string" },
+        "location": { "type": "string" },
+        "image": { "type": "string" },
+        "bio": { "type": "string" },
+        "achievements": { "type": "array", "items": { "type": "string" } },
+        "goal": { "type": "number" },
+        "raised": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "completed", "paused"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["athleteId", "name", "sport", "school", "location", "goal", "raised", "status", "createdAt", "updatedAt"]
+    },
+    "Donation": {
+      "title": "Donation Record",
+      "description": "Information about a contribution to an athlete",
+      "type": "object",
+      "properties": {
+        "donationId": { "type": "string" },
+        "athleteId": { "type": "string" },
+        "donorId": { "type": "string" },
+        "donorName": { "type": "string" },
+        "amount": { "type": "number" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["donationId", "athleteId", "donorId", "amount", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Private user profiles"
+    },
+    "/athletes/{athleteId}": {
+      "schema": "AthleteProfile",
+      "description": "Public athlete campaign data"
+    },
+    "/athletes/{athleteId}/donations/{donationId}": {
+      "schema": "Donation",
+      "description": "Contributions for a specific athlete"
+    }
+  }
+}
